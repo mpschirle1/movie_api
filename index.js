@@ -3,261 +3,197 @@ const express = require('express'),
   fs = require('fs'),
   path = require('path'),
   bodyParser = require('body-parser'),
-  uuid = require('uuid');
+  uuid = require('uuid'),
+  mongoose = require('mongoose'),
+  Models = require('./models.js');
+
 const { get } = require('lodash');
 
 const app = express();
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+const Movies = Models.Movie;
+const Users = Models.User;
 
 const accessLogStream = fs.createWriteStream(path.join(__dirname, 'log.txt'), {flags: 'a'})
 
+mongoose.connect('mongodb://localhost:27017/myFlixDB', { useNewUrlParser: true, useUnifiedTopology: true});
+
 app.use(morgan('combined', {stream: accessLogStream}));
-
 app.use(express.static('public'));
-
-app.use(bodyParser.json());
-
-let users = [
-  {
-    id: 1,
-    name: "Biff",
-    favoriteMovies: []
-  },
-  {
-    id: 2,
-    name: "Barb",
-    favoriteMovies: ["Pulp Fiction"]
-  }
-];
-
-let movies = [
-  // In NO particular order...
-  {
-    Title: "Fight Club",
-    Genre: {
-      Name: "Drama",
-      Description: "In film and television, drama is a category or genre of narrative fiction (or semi-fiction) intended to be more serious than humorous in tone."
-    },
-    Director: {
-      Name: "David Fincher",
-    },
-    Year: "1999"
-  },
-  {
-    Title: "A Clockwork Orange",
-    Genre: {
-      Name: "Crime",
-      Description: "Crime fiction, detective story, murder mystery, mystery novel, and police novel are terms used to describe narratives that centre on criminal acts and especially on the investigation, either by an amateur or a professional detective, of a crime, often a murder."
-    },
-    Director: {
-      Name: "Stanley Kubrick",
-    },
-    Year: "1971"
-  },
-  {
-    Title: "Network",
-    Genre: {
-      Name: "Drama",
-      Description:"In film and television, drama is a category or genre of narrative fiction (or semi-fiction) intended to be more serious than humorous in tone."
-    },
-    Director: {
-      Name: "Sidney Lumet",
-    },
-    Year: "1976"
-  },
-  {
-    Title: "Star Wars: Episode V - The Empire Strikes Back",
-    Genre: {
-      Name: "Sci-Fi",
-      Description: "Science fiction (sometimes shortened to sci-fi or SF) is a genre of speculative fiction which typically deals with imaginative and futuristic concepts such as advanced science and technology, space exploration, time travel, parallel universes, extraterrestrial life, sentient artificial intelligence, cybernetics, certain forms of immortality (like mind uploading), and the singularity."
-    },
-    Director: {
-      Name: "Irvin Kershner",
-    },
-    Year: "1980"
-  },
-  {
-    Title: "Interstellar",
-    Genre: {
-      Name: "Sci-Fi",
-      Description: "Science fiction (sometimes shortened to sci-fi or SF) is a genre of speculative fiction which typically deals with imaginative and futuristic concepts such as advanced science and technology, space exploration, time travel, parallel universes, extraterrestrial life, sentient artificial intelligence, cybernetics, certain forms of immortality (like mind uploading), and the singularity."
-    },
-    Director: {
-      Name: "Christopher Nolan",
-    },
-    Year: "2014"
-  },
-  {
-    Title: "Pulp Fiction",
-    Genre: {
-      Name: "Crime",
-      Description: "Crime fiction, detective story, murder mystery, mystery novel, and police novel are terms used to describe narratives that centre on criminal acts and especially on the investigation, either by an amateur or a professional detective, of a crime, often a murder."
-    },
-    Director: {
-      Name: "Quentin Tarantino",
-    },
-    Year: "1994"
-  },
-  {
-    Title: "The Matrix",
-    Genre: {
-      Name: "Sci-Fi",
-      Description:"Science fiction (sometimes shortened to sci-fi or SF) is a genre of speculative fiction which typically deals with imaginative and futuristic concepts such as advanced science and technology, space exploration, time travel, parallel universes, extraterrestrial life, sentient artificial intelligence, cybernetics, certain forms of immortality (like mind uploading), and the singularity."
-    },
-    Director: {
-      Name: "Lana Wachowski & Lilly Wachowski",
-    },
-    Year: "1999"
-  },
-  {
-    Title: "The Sandlot",
-    Genre: {
-      Name: "Comedy",
-      Description:"Comedy may be divided into multiple genres based on the source of humor, the method of delivery, and the context in which it is delivered. These classifications overlap, and most comedians can fit into multiple genres."
-    },
-    Director: {
-      Name: "David Mickey Evans",
-    },
-    Year: "1993"
-  },
-  {
-    Title: "Apocalypse Now",
-    Genre: {
-      Name: "Drama",
-      Description:"In film and television, drama is a category or genre of narrative fiction (or semi-fiction) intended to be more serious than humorous in tone."
-    },
-    Director: {
-      Name: "Francis Ford Coppola",
-    },
-    Year: "1979"
-  },
-  {
-    Title: "Airplane!",
-    Genre: {
-      Name: "Comedy",
-      Description:"Comedy may be divided into multiple genres based on the source of humor, the method of delivery, and the context in which it is delivered. These classifications overlap, and most comedians can fit into multiple genres."
-    },
-    Director: {
-      Name: "Jim Abrahams, David Zucker & Jerry Zucker",
-    },
-    Year: "1980"
-  }
-];
 
 app.get('/', (req, res) => {
   res.send('Welcome to myFlix!');
 })
 
-// CREATE
+// CREATE a new user
 app.post('/users', (req, res) => {
-  const newUser = req.body;
+  Users.findOne({ Username: req.body.Username })
+    .then((user) => {
+      if (user) {
+        return res.status(409).send(req.body.Username + 'already exists');
+      } else {
+        Users
+          .create({
+            Username: req.body.Username,
+            Password: req.body.Password,
+            Email: req.body.Email,
+            Birthday: req.body.Birthday
+          })
+          .then((user) => { res.status(201).json(user) })
+        .catch((error) => {
+          console.error(error);
+          res.status(500).send('Error: ' + error);
+        })
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      res.status(500).send('Error: ' + error);
+    });
+});
 
-  if (newUser.name) {
-    newUser.id = uuid.v4();
-    users.push(newUser);
-    res.status(201).json(newUser)
-  } else {
-    res.status(400).send('User must have a name')
-  }
-})
+// READ - Get all users
+app.get('/users', (req, res) => {
+  Users.find()
+    .then((users) => {
+      res.status(201).json(users);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    });
+});
 
-// UPDATE
-app.put('/users/:id', (req, res) => {
-  const { id } = req.params;
-  const updatedUser = req.body;
-  let user = users.find( user => user.id == id );
+// READ - Get a user by username
+app.get('/users/:Username', (req, res) => {
+  Users.findOne({ Username: req.params.Username })
+    .then((user) => {
+      res.json(user);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    });
+});
 
-  if (user) {
-    user.name = updatedUser.name;
-    res.status(200).json(user);
-  } else {
-    res.status(400).send('User not found')
-  }
-})
+// UPDATE a users info, by username
+app.put('/users/:Username', (req, res) => {
+  Users.findOneAndUpdate({ Username: req.params.Username }, { $set:
+    {
+      Username: req.body.Username,
+      Password: req.body.Password,
+      Email: req.body.Email,
+      Birthday: req.body.Birthday
+    }
+  },
+  { new: true }, // Ensures that the updated document is returned
+  (err, updatedUser) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    } else {
+      res.status(200).json(updatedUser);
+    }
+  });
+});
 
-// CREATE
-app.post('/users/:id/:movieTitle', (req, res) => {
-  const { id, movieTitle } = req.params;
-  
-  let user = users.find( user => user.id == id );
+// UPDATE - Add a movie to a user's list of favorites
+app.post('/users/:Username/movies/:MovieID', (req, res) => {
+  Users.findOneAndUpdate({ Username: req.params.Username }, {
+    $push: { FavoriteMovies: req.params.MovieID }
+  },
+  { new: true}, // Returns updated document
+  (err, updatedUser) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    } else {
+      res.status(200).json(updatedUser);
+    }
+  });
+});
 
-  if (user) {
-    user.favoriteMovies.push(movieTitle);
-    res.status(200).send(`${movieTitle} has been added to ${user.name}'s favorites`);
-  } else {
-    res.status(400).send('User not found')
-  }
-})
+// DELETE a movie from a user's list of favorites
+app.delete('/users/:Username/movies/:MovieID', (req, res) => {
+  Users.findOneAndUpdate({ Username: req.params.Username }, {
+    $pull: { FavoriteMovies: req.params.MovieID }
+  },
+  { new: true}, // Returns updated document
+  (err, updatedUser) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    } else {
+      res.json(updatedUser);
+    }
+  });
+});
 
-// DELETE
-app.delete('/users/:id/:movieTitle', (req, res) => {
-  const { id, movieTitle } = req.params;
-  
-  let user = users.find( user => user.id == id );
+// DELETE a user by username
+app.delete('/users/:Username', (req, res) => {
+  Users.findOneAndRemove({ Username: req.params.Username })
+    .then((user) => {
+      if (!user) {
+        res.status(400).send(res.params.Username + ' was not found');
+      } else {
+        res.status(200).send(req.params.Username + ' was deleted');
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    });
+});
 
-  if (user) {
-    user.favoriteMovies = user.favoriteMovies.filter(title => title !== movieTitle);
-    res.status(200).send(`${movieTitle} has been removed from ${user.name}'s favorites`);
-  } else {
-    res.status(400).send('User not found')
-  }
-})
-
-// DELETE
-app.delete('/users/:id', (req, res) => {
-  const { id } = req.params;
-  
-  let user = users.find( user => user.id == id );
-
-  if (user) {
-    users = users.filter( user => user.id != id);
-    res.status(200).send(`${user.name} has been deregistered`);
-  } else {
-    res.status(400).send('User not found')
-  }
-})
-
-// READ
+// READ - Get all movies
 app.get('/movies', (req, res) => {
-  res.status(200).json(movies);
-})
+  Movies.find()
+    .then((movies) => {
+      res.status(200).json(movies);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    });
+});
 
-// READ
-app.get('/movies/:title', (req, res) => {
-  const { title } = req.params; // Object destructuring
-  const movie = movies.find( movie => movie.Title === title );
+// READ - Get a movie by title
+app.get('/movies/:Title', (req, res) => {
+  Movies.findOne({ Title: req.params.Title })
+    .then((title) => {
+      res.json(title);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    });
+});
 
-  if (movie) {
-    res.status(200).json(movie);
-  } else {
-    res.status(400).send("Movie not found")
-  }
-})
+// READ - Get a genre by name/title
+app.get('/movies/genre/:Name', (req, res) => {
+  Movies.findOne({ 'Genre.Name': req.params.Name })
+    .then((genre) => {
+      res.status(200).json(genre);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    });
+});
 
-// READ
-app.get('/movies/genre/:genreName', (req, res) => {
-  const { genreName } = req.params;
-  const genre = movies.find( movie => movie.Genre.Name === genreName ).Genre;
-
-  if (genre) {
-    res.status(200).json(genre);
-  } else {
-    res.status(400).send("Genre not found")
-  }
-})
-
-// READ
-app.get('/movies/directors/:directorName', (req, res) => {
-  const { directorName } = req.params;
-  const director = movies.find( movie => movie.Director.Name === directorName ).Director;
-
-  if (director) {
-    res.status(200).json(director);
-  } else {
-    res.status(400).send("Director not found")
-  }
-})
-
-
+// READ - Get director data by name
+app.get('/movies/directors/:Name', (req, res) => {
+  Movies.findOne({ 'Director.Name': req.params.Name })
+    .then((director) => {
+      res.status(200).json(director.Director);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).send('Error: ' + err);
+    });
+});
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
