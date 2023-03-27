@@ -4,6 +4,11 @@
 
 This is the server-side component of a “movies” web application called "myFlix". The web application provides users with access to information about different movies, directors, and genres. Users are to sign up, update their personal information, and create a list of their favorite movies. This REST API and database were built using JavaScript, Node.js, Express, and MongoDB. CRUD methods are used to retreive data from the database.
 
+## Application Links
+
+[myFlix React Client](https://myflix-react-application.netlify.app/) <br>
+[myFlix Angular Client](https://mpschirle1.github.io/myFlix-Angular-client/)
+
 ## Features
 
 - Return a list of ALL movies to the user
@@ -37,8 +42,3 @@ the movie rating
 "passport-local": "^1.0.0",
 "uuid": "^8.3.2"
 </pre>
-
-## Application Links
-
-myFlix React Client: https://myflix-react-application.netlify.app/ <br>
-myFlix Angular Client: https://mpschirle1.github.io/myFlix-Angular-client/
